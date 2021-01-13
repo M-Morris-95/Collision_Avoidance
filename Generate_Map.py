@@ -91,7 +91,7 @@ class pos_solv():
         self.dxdy = np.sqrt(np.square(start - end).sum())
         self.tol = 1
 
-        self.mass = 15
+        self.mass = 20
 
         self.f_goal = 20
         self.vel = np.array([0,0])
@@ -116,6 +116,12 @@ class pos_solv():
         force = self.get_f(map)
 
         self.vel = self.vel + force / self.mass * dt
+        self.vel = np.maximum([-1, -1], self.vel)
+        self.vel = np.minimum([1, 1], self.vel)
+
+
+
+
         self.pos = self.pos + self.vel * dt
 
         self.vel_hist.append(self.vel)
