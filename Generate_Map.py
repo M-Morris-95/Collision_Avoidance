@@ -159,6 +159,7 @@ class pos_solv():
             return True
         return False
 
+
 start = np.asarray([1,5])
 end = np.asarray([9,5])
 map = map_2d(start=start, end=end)
@@ -171,42 +172,33 @@ for i in range(10000):
     if pos_ode.terminal():
         break
 
-# plt.subplot(1,1,1)
-# plt.title('position')
-# plt.plot(np.asarray(pos_ode.pos_hist)[:,0], np.asarray(pos_ode.pos_hist)[:,1])
-# plt.xlim([0,10])
-# plt.ylim([0,10])
-# plt.show()
-
 pos = (np.asarray(pos_ode.pos_hist)*(1/map.dx)).astype(int)
-
 path_map = copy.copy(map.z)
+
 for i in range(pos.shape[0]):
     path_map[pos[i][0], pos[i][1]] = -1
 
 map.plot(path_map)
 
 
-f_all = np.zeros(map.x.shape)
-fx_all = np.zeros(map.x.shape)
-fy_all = np.zeros(map.x.shape)
+# f_all = np.zeros(map.x.shape)
+# fx_all = np.zeros(map.x.shape)
+# fy_all = np.zeros(map.x.shape)
 
-for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
-    for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
-        fx, fy, f = map.get_f([x,y])
-
-        dxdy = pos_ode.end - np.asarray([x,y])
-
-        theta = np.arctan2(dxdy[1], dxdy[0])
-
-        fx_goal = pos_ode.f_goal * np.cos(theta)
-        fy_goal = pos_ode.f_goal * np.sin(theta)
-
-        f_all[idx_x, idx_y] = f
-        fx_all[idx_x, idx_y] = fx + fx_goal
-        fy_all[idx_x, idx_y] = fy + fy_goal
-
-
+# for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
+#     for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
+#         fx, fy, f = map.get_f([x,y])
+#
+#         dxdy = pos_ode.end - np.asarray([x,y])
+#
+#         theta = np.arctan2(dxdy[1], dxdy[0])
+#
+#         fx_goal = pos_ode.f_goal * np.cos(theta)
+#         fy_goal = pos_ode.f_goal * np.sin(theta)
+#
+#         f_all[idx_x, idx_y] = f
+#         fx_all[idx_x, idx_y] = fx + fx_goal
+#         fy_all[idx_x, idx_y] = fy + fy_goal
 
 # map.plot(map.z, 'map')
 # map.plot(f_all, 'f_total')
