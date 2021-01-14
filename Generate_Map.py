@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import time
 import copy
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
@@ -56,8 +57,11 @@ class map_2d():
         # pos = [map.size_x/2, map.size_y/2]
 
         size_start_end = 10
-        self.z[int(self.start[0]-size_start_end/2) : int(self.start[0]+size_start_end/2),int(self.start[1]-size_start_end/2) : int(self.start[1]+size_start_end/2)] = 0
-        self.z[int(self.end[0] - size_start_end / 2): int(self.end[0] + size_start_end / 2),int(self.end[1] - size_start_end / 2): int(self.end[1] + size_start_end / 2)] = 0
+        self.z[int(self.end[0] - size_start_end / 2): int(self.end[0] + size_start_end / 2),
+        int(self.end[1] - size_start_end / 2): int(self.end[1] + size_start_end / 2)] = 0
+
+        self.z[int(self.start[0] - size_start_end / 2): int(self.start[0] + size_start_end / 2),
+        int(self.start[1] - size_start_end / 2): int(self.start[1] + size_start_end / 2)] = 0
 
     def plot(self, to_plot, title = None):
         cmap = plt.get_cmap('PiYG')
@@ -113,7 +117,7 @@ class pos_solv():
         self.f_goal = 10
 
         self.noise = np.asarray([0,0])
-        self.noise_param = {'mu':0, 'sigma':0.1, 'decay_period':100}
+        self.noise_param = {'mu':0, 'sigma':0.5, 'decay_period':100}
 
         self.vel = np.array([0,0])
         self.vel_hist = [self.vel]
@@ -160,31 +164,38 @@ class pos_solv():
         return False
 
 
-start = np.asarray([1,5])
-end = np.asarray([9,5])
+start = np.asarray([1,1])
+end = np.asarray([9,9])
+
+
 map = map_2d(start=start, end=end)
-pos_ode = pos_solv(start=start, end=end)
 map.fill_map()
 
 
-for i in range(10000):
-    pos_ode.next_pos(map)
+for run in range(20):
+    pos_ode = pos_solv(start=start, end=end)
+
+    pos_ode.noise_param['sigma'] = run * 0.1
+
+    for i in range(10000):
+        pos_ode.next_pos(map)
+        if pos_ode.terminal():
+            break
+
+    pos = (np.asarray(pos_ode.pos_hist) * (1 / map.dx)).astype(int)
+    path_map = copy.copy(map.z)
+    for i in range(pos.shape[0]):
+        path_map[pos[i][0], pos[i][1]] = -1
+
+    map.plot(path_map)
+
     if pos_ode.terminal():
         break
-
-pos = (np.asarray(pos_ode.pos_hist)*(1/map.dx)).astype(int)
-path_map = copy.copy(map.z)
-
-for i in range(pos.shape[0]):
-    path_map[pos[i][0], pos[i][1]] = -1
-
-map.plot(path_map)
-
 
 # f_all = np.zeros(map.x.shape)
 # fx_all = np.zeros(map.x.shape)
 # fy_all = np.zeros(map.x.shape)
-
+#
 # for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
 #     for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
 #         fx, fy, f = map.get_f([x,y])
@@ -199,10 +210,7 @@ map.plot(path_map)
 #         f_all[idx_x, idx_y] = f
 #         fx_all[idx_x, idx_y] = fx + fx_goal
 #         fy_all[idx_x, idx_y] = fy + fy_goal
-
-# map.plot(map.z, 'map')
-# map.plot(f_all, 'f_total')
-
+#
 # fig, ax = plt.subplots()
 # q = ax.quiver(map.x, map.y, fx_all, fy_all)
 # ax.quiverkey(q, X=0.3, Y=1.1, U=10,
