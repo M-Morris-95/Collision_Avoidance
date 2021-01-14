@@ -1,17 +1,23 @@
 import numpy as np
 import matplotlib
+import copy
 import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
 class map_2d():
-    def __init__(self, size = [80,80], xlim = [0,10], ylim = [0,10]):
+    def __init__(self, size = [50,50], xlim = [0,10], ylim = [0,10], start = np.asarray([1,5]), end = np.asarray([9,5])):
         self.xlim = xlim
         self.ylim = ylim
 
+        self.start = start
+        self.end = end
+
         self.size_x = size[0]
-        self.size_y = size[0]
+        self.size_y = size[1]
+
+        self.d_max = 0.5
 
 
         self.range_x = xlim[1] - xlim[0]
@@ -28,11 +34,16 @@ class map_2d():
 
         self.z = np.zeros(self.x.shape)
 
+        self.z[0, :] = 1
+        self.z[-1, :] = 1
+        self.z[:, 0] = 1
+        self.z[:, -1] = 1
+
         return None
 
     def fill_map(self):
-        n_shapes = 10
-        size_of_shapes = 10
+        n_shapes = 50
+        size_of_shapes = 5
 
         for _ in range(n_shapes):
             pos = [(self.size_x*np.random.random(1)).astype(int),
@@ -41,6 +52,12 @@ class map_2d():
             size = (size_of_shapes*np.random.random(1)).astype(int)[0]
 
             self.z[int(pos[0]-size/2) : int(pos[0]+size/2), int(pos[1]-size/2) : int(pos[1]+size/2)] = 1
+
+        # pos = [map.size_x/2, map.size_y/2]
+
+        size_start_end = 10
+        self.z[int(self.start[0]-size_start_end/2) : int(self.start[0]+size_start_end/2),int(self.start[1]-size_start_end/2) : int(self.start[1]+size_start_end/2)] = 0
+        self.z[int(self.end[0] - size_start_end / 2): int(self.end[0] + size_start_end / 2),int(self.end[1] - size_start_end / 2): int(self.end[1] + size_start_end / 2)] = 0
 
     def plot(self, to_plot, title = None):
         cmap = plt.get_cmap('PiYG')
@@ -54,7 +71,9 @@ class map_2d():
         # centers
 
         cf = ax0.contourf(self.x,
-                          self.y, to_plot)
+                          self.y,
+                          to_plot,
+                          antialiased = False)
 
 
         fig.colorbar(cf, ax=ax0)
@@ -71,7 +90,7 @@ class map_2d():
         dy = pos[1] - self.y
 
         self.dxdy = np.maximum(np.square(dx) + np.square(dy) , self.d_min)
-
+        self.dxdy[self.dxdy > self.d_max] = np.inf
         thetas = np.arctan2(dx, dy)
 
         self.f_map = np.divide(self.z, self.dxdy)
@@ -82,20 +101,25 @@ class map_2d():
         return fx, fy, self.f_map.sum()
 
 class pos_solv():
-    def __init__(self, start = np.array([5,0]), end = np.array([5,10])):
+    def __init__(self, start = np.array([1,5]), end = np.array([9,5])):
         self.pos_hist = [start]
 
         self.pos = start
         self.end = end
-
         self.dxdy = np.sqrt(np.square(start - end).sum())
-        self.tol = 1
 
-        self.mass = 20
+        self.tol = 0.25
+        self.mass = 0.0001
+        self.f_goal = 10
 
-        self.f_goal = 20
+        self.noise = np.asarray([0,0])
+        self.noise_param = {'mu':0, 'sigma':0.1, 'decay_period':100}
+
         self.vel = np.array([0,0])
         self.vel_hist = [self.vel]
+
+    def ornstein_uhlenbeck_noise(self):
+        self.noise = self.noise * (1-1/self.noise_param['decay_period']) + np.random.normal(self.noise_param['mu'], self.noise_param['sigma'], 2)
 
     def get_f(self, map):
         fx, fy, _ = map.get_f(self.pos)
@@ -107,20 +131,21 @@ class pos_solv():
         fx_goal = self.f_goal * np.cos(theta)
         fy_goal = self.f_goal * np.sin(theta)
 
+
+
         fx = fx + fx_goal
         fy = fy + fy_goal
 
-        return np.asarray([fx, fy])
+        self.ornstein_uhlenbeck_noise()
+
+        return np.asarray([fx, fy]) + self.noise
 
     def next_pos(self, map, dt = 0.005):
         force = self.get_f(map)
 
-        self.vel = self.vel + force / self.mass * dt
+        self.vel = self.vel + (force / self.mass) * dt
         self.vel = np.maximum([-1, -1], self.vel)
         self.vel = np.minimum([1, 1], self.vel)
-
-
-
 
         self.pos = self.pos + self.vel * dt
 
@@ -134,45 +159,56 @@ class pos_solv():
             return True
         return False
 
-map = map_2d()
-pos_ode = pos_solv()
+start = np.asarray([1,5])
+end = np.asarray([9,5])
+map = map_2d(start=start, end=end)
+pos_ode = pos_solv(start=start, end=end)
 map.fill_map()
-map.plot(map.z, 'map')
+
 
 for i in range(10000):
     pos_ode.next_pos(map)
     if pos_ode.terminal():
         break
 
-plt.subplot(2,1,1)
-plt.title('position')
-plt.plot(np.asarray(pos_ode.pos_hist)[:,0], np.asarray(pos_ode.pos_hist)[:,1])
-plt.xlim([0,10])
-plt.ylim([0,10])
-plt.subplot(2,1,2)
-plt.title('velocity')
-plt.plot(np.asarray(pos_ode.vel_hist)[:,0], np.asarray(pos_ode.vel_hist)[:,1])
-plt.xlim([-10,10])
-plt.ylim([-10,10])
-plt.show()
+# plt.subplot(1,1,1)
+# plt.title('position')
+# plt.plot(np.asarray(pos_ode.pos_hist)[:,0], np.asarray(pos_ode.pos_hist)[:,1])
+# plt.xlim([0,10])
+# plt.ylim([0,10])
+# plt.show()
+
+pos = (np.asarray(pos_ode.pos_hist)*(1/map.dx)).astype(int)
+
+path_map = copy.copy(map.z)
+for i in range(pos.shape[0]):
+    path_map[pos[i][0], pos[i][1]] = -1
+
+map.plot(path_map)
+
+
+f_all = np.zeros(map.x.shape)
+fx_all = np.zeros(map.x.shape)
+fy_all = np.zeros(map.x.shape)
+
+for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
+    for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
+        fx, fy, f = map.get_f([x,y])
+
+        dxdy = pos_ode.end - np.asarray([x,y])
+
+        theta = np.arctan2(dxdy[1], dxdy[0])
+
+        fx_goal = pos_ode.f_goal * np.cos(theta)
+        fy_goal = pos_ode.f_goal * np.sin(theta)
+
+        f_all[idx_x, idx_y] = f
+        fx_all[idx_x, idx_y] = fx + fx_goal
+        fy_all[idx_x, idx_y] = fy + fy_goal
 
 
 
-
-
-# f_all = np.zeros(map.x.shape)
-# fx_all = np.zeros(map.x.shape)
-# fy_all = np.zeros(map.x.shape)
-
-# for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
-#     for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
-#         fx, fy, f = map.get_f([x,y])
-#         f_all[idx_x, idx_y] = f
-#         fx_all[idx_x, idx_y] = fx
-#         fy_all[idx_x, idx_y] = fy
-
-# map.plot(fx_all, 'fx')
-# map.plot(fy_all, 'fy')
+# map.plot(map.z, 'map')
 # map.plot(f_all, 'f_total')
 
 # fig, ax = plt.subplots()
