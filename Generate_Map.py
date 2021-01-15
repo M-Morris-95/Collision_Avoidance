@@ -18,16 +18,14 @@ class map_2d():
         self.size_x = size[0]
         self.size_y = size[1]
 
-        self.d_max = 0.5
-
-
         self.range_x = xlim[1] - xlim[0]
         self.range_y = ylim[1] - ylim[0]
 
         self.dy = (ylim[1] - ylim[0]) / size[1]
         self.dx = (xlim[1] - xlim[0]) / size[0]
 
-        self.d_min = min(self.dx, self.dy)
+        self.d_max = 2.5 # limit of influence from map
+        self.d_min = min(self.dx, self.dy) # Stops F = inf
 
         # generate 2 2d grids for the x & y bounds
         self.y, self.x = np.meshgrid(np.arange(xlim[0], xlim[1]+self.dx, self.dx),
@@ -53,8 +51,6 @@ class map_2d():
             size = (size_of_shapes*np.random.random(1)).astype(int)[0]
 
             self.z[int(pos[0]-size/2) : int(pos[0]+size/2), int(pos[1]-size/2) : int(pos[1]+size/2)] = 1
-
-        # pos = [map.size_x/2, map.size_y/2]
 
         size_start_end = 10
         self.z[int(self.end[0] - size_start_end / 2): int(self.end[0] + size_start_end / 2),
@@ -89,15 +85,22 @@ class map_2d():
 
         plt.show()
 
-    def get_f(self, pos):
+    def get_f(self, pos, type = 'square'):
         dx = pos[0] - self.x
         dy = pos[1] - self.y
 
-        self.dxdy = np.maximum(np.square(dx) + np.square(dy) , self.d_min)
-        self.dxdy[self.dxdy > self.d_max] = np.inf
-        thetas = np.arctan2(dx, dy)
+        dxdy2 = np.square(dx) + np.square(dy)
+        dxdy2[dxdy2 > self.d_max ** 2] = np.inf
+        dxdy2[dxdy2 < self.d_min ** 2] = self.d_min ** 2
 
-        self.f_map = np.divide(self.z, self.dxdy)
+        if type == 'square':
+            self.f_map = np.divide(0.4*self.z, dxdy2)
+
+        if type == 'gaussian':
+            self.f_map = 5*np.exp(-np.sqrt(dxdy2)) * self.z
+
+
+        thetas = np.arctan2(dx, dy)
 
         fx = np.multiply(np.sin(thetas), self.f_map).sum()
         fy = np.multiply(np.cos(thetas), self.f_map).sum()
@@ -192,27 +195,30 @@ for run in range(20):
     if pos_ode.terminal():
         break
 
-# f_all = np.zeros(map.x.shape)
-# fx_all = np.zeros(map.x.shape)
-# fy_all = np.zeros(map.x.shape)
-#
-# for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
-#     for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
-#         fx, fy, f = map.get_f([x,y])
-#
-#         dxdy = pos_ode.end - np.asarray([x,y])
-#
-#         theta = np.arctan2(dxdy[1], dxdy[0])
-#
-#         fx_goal = pos_ode.f_goal * np.cos(theta)
-#         fy_goal = pos_ode.f_goal * np.sin(theta)
-#
-#         f_all[idx_x, idx_y] = f
-#         fx_all[idx_x, idx_y] = fx + fx_goal
-#         fy_all[idx_x, idx_y] = fy + fy_goal
-#
-# fig, ax = plt.subplots()
-# q = ax.quiver(map.x, map.y, fx_all, fy_all)
-# ax.quiverkey(q, X=0.3, Y=1.1, U=10,
-#              label='Quiver key, length = 10', labelpos='E')
-# plt.show()
+f_all = np.zeros(map.x.shape)
+fx_all = np.zeros(map.x.shape)
+fy_all = np.zeros(map.x.shape)
+
+for idx_x, x in enumerate(np.arange(map.xlim[0], map.xlim[1] + map.dx, map.dx)):
+    for idx_y, y in enumerate(np.arange(map.ylim[0], map.xlim[1] + map.dy, map.dy)):
+        fx, fy, f = map.get_f([x,y])
+
+        dxdy = pos_ode.end - np.asarray([x,y])
+
+        theta = np.arctan2(dxdy[1], dxdy[0])
+
+        fx_goal = pos_ode.f_goal * np.cos(theta)
+        fy_goal = pos_ode.f_goal * np.sin(theta)
+
+        f_all[idx_x, idx_y] = f
+        fx_all[idx_x, idx_y] = fx + fx_goal
+        fy_all[idx_x, idx_y] = fy + fy_goal
+
+map.plot(map.z)
+map.plot(f_all)
+
+fig, ax = plt.subplots()
+q = ax.quiver(map.x, map.y, fx_all, fy_all)
+ax.quiverkey(q, X=0.3, Y=1.1, U=10,
+             label='Quiver key, length = 10', labelpos='E')
+plt.show()
