@@ -9,7 +9,7 @@ class pos_solv():
         self.dxdy = np.sqrt(np.square(start - end).sum())
 
         self.tol = 0.1
-        self.mass = 0.0001
+        self.mass = 0.1
         self.f_goal = 10
 
         self.noise = np.asarray([0,0])

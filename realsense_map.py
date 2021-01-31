@@ -81,7 +81,8 @@ class realsense_map():
         dxdy2[dxdy2 < self.d_min ** 2] = self.d_min ** 2
 
         if type == 'square':
-            self.f_map = np.divide(0.4*self.z, dxdy2)
+            # self.f_map = np.divide(0.4*self.z, dxdy2)
+            self.f_map = np.divide(1.0 * self.z, dxdy2)
 
         if type == 'gaussian':
             self.f_map = 5*np.exp(-np.sqrt(dxdy2)) * self.z

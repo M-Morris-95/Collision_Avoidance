@@ -57,6 +57,35 @@ class map_2d():
         num_vox = np.asarray([-0.5*size/self.dx, 0.5*size/self.dy]).round().astype(int)
         self.z[pos[1] + num_vox[0]:pos[1] + num_vox[1], pos[0] + num_vox[0]:pos[0] + num_vox[1]] = val
 
+    def custom_map(self):
+        x = np.asarray([[2.8, 3.2],
+             [2.8, 3.2],
+             [4.8, 5.2],
+             [6.8, 7.2],
+             [6.8, 7.2]]) / self.dx
+        y = np.asarray([[0,4],
+             [6,10],
+             [4,6],
+             [0,4],
+             [6,10]]) / self.dy
+        x = x.astype(int)
+        y = y.astype(int)
+
+        for i in range(x.shape[0]):
+            x0 = x[i, 0]
+            x1 = x[i, 1]
+            y0 = y[i, 0]
+            y1 = y[i, 1]
+            self.z[y0:y1, x0:x1]=1
+
+
+
+
+
+
+
+
+
     def plot(self, to_plot, title = None):
         cmap = plt.get_cmap('PiYG')
 

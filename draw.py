@@ -2,7 +2,7 @@ import pygame
 import numpy as np
 from map import *
 from ode_solver import *
-
+import time
 class anim():
     def __init__(self, xlim = [0,10], ylim = [0,10]):
         pygame.init()
@@ -19,7 +19,9 @@ class anim():
         dy = self.n_pix[1] / (ylim[1] - ylim[0])
 
         self.dxdy = np.asarray([dx, dy])
+        self.screen.fill((255, 255, 255))
 
+        pygame.display.flip()
     def plot_sq(self, pos, sq_size, color = (0,0,255)):
 
         sq_size = sq_size * self.dxdy
@@ -34,8 +36,9 @@ class anim():
 
     def apply_map(self, x, y, z):
         tx, ty = np.indices(z.shape)
-        tx = tx.reshape(-1)
-        ty = ty.reshape(-1)
+
+        tx = tx[z==1].reshape(-1)
+        ty = ty[z==1].reshape(-1)
         color = []
         for pos in np.asarray([tx,ty]).T:
             color.append(255 * z[pos[0], pos[1]])
@@ -49,50 +52,61 @@ class anim():
         pxpy = np.asarray([px,py]).T
         for idx,pos in enumerate(pxpy):
             pos = pos+self.padding
-            pygame.draw.rect(self.screen, (color[idx],0,0), pygame.Rect(pos[0], pos[1], 7, 7))
+            pygame.draw.rect(surface = self.screen,
+                             color = (color[idx],0,0),
+                             rect = pygame.Rect(pos[0], pos[1], 7, 7),
+                             width = 0)
 
-
+        pygame.display.flip()
         return True
 
-    def run(self, map):
+    def xy2pix(self, x, y=None):
+        x = (x - self.xlim[0]) / (self.xlim[1] - self.xlim[0])
+        y = (y - self.ylim[0]) / (self.ylim[1] - self.ylim[0])
 
-        # Run until the user asks to quit
-        running = True
-        while running:
-
-            # Did the user click the window close button?
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-
-            # Fill the background with white
-            self.screen.fill((255, 255, 255))
-
-            # Draw a solid blue circle in the center
-            self.apply_map(map.x, map.y, map.z)
-
-            # pygame.draw.circle(screen, (0, 0, 255), (250, 250), 75)
-
-            # Flip the display
-            pygame.display.flip()
-
-        # Done! Time to quit.
-        pygame.quit()
-
-start = np.asarray([1,1])
-end = np.asarray([7,5])
-xlim = [0,10]
-ylim = [0,10]
-
-map = map_2d(xlim = xlim,
-             ylim = ylim,
-             start=start,
-             end=end)
-
-map.fill_map()
-map.plot(map.z)
+        x = self.n_pix[0] * x + self.padding[0]
+        y = self.n_pix[1] - self.n_pix[1]*y + self.padding[1]
 
 
-plot = anim(xlim = xlim, ylim = ylim)
 
-plot.run(map)
+        return x.astype(int), y.astype(int)
+
+    def drone_pos(self, px, py, vx, vy, dt = 0.05):
+        px_1, py_1 = self.xy2pix(px, py)
+        px_2, py_2 = self.xy2pix(px+vx*dt, py+vy*dt)
+
+        # pygame.draw.line(surface=self.screen,
+        #                  color=(0, 255, 0),
+        #                  start_pos = (px_1, py_1),
+        #                  end_pos = (px_2, py_2),
+        #                  width=3)
+
+        pygame.draw.circle(surface=self.screen,
+                         color=(0, 255, 0),
+                         center = (px_1, py_1),
+                         radius = 2)
+
+        pygame.display.flip()
+        return True
+
+
+# start = np.asarray([1,1])
+# end = np.asarray([7,5])
+# xlim = [0,10]
+# ylim = [0,10]
+#
+# map = map_2d(xlim = xlim,
+#              ylim = ylim,
+#              start=start,
+#              end=end)
+#
+# map.fill_map()
+# map.plot(map.z)
+#
+#
+# plot = anim(xlim = xlim, ylim = ylim)
+# plot.apply_map(map.x, map.y, map.z)
+#
+# plot.drone_pos(2, 2, 1, 1)
+# time.sleep(3)
+# pygame.quit()

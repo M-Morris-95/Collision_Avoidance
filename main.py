@@ -1,14 +1,15 @@
 import copy
-
+from draw import *
 from realsense_map import *
 from map import *
 from ode_solver import *
+from scipy import signal
 
-start = np.asarray([2,2])
-end = np.asarray([8,3])
+start = np.asarray([1.5,1.5])
+end = np.asarray([8.5,1.5])
 
 xlim = [0,10]
-ylim = [0,5]
+ylim = [0,10]
 
 map = map_2d(xlim = xlim,
              ylim = ylim,
@@ -22,16 +23,29 @@ drone = realsense_map(xlim = xlim,
 pos_ode = pos_solv(start=start,
                    end=end)
 
-map.fill_map()
+# map.fill_map()
+map.custom_map()
+map.plot(map.z)
 
 for run in range(5):
     pos_ode = pos_solv(start=start, end=end)
 
     pos_ode.noise_param['sigma'] = run * 0.1
     drone.update(map.z, pos_ode.pos, pos_ode.vel)
-    for i in range(1000):
+
+    plot = anim(xlim = xlim, ylim = ylim)
+    plot.apply_map(map.x, map.y, map.z)
+
+
+
+
+    for i in range(200):
         pos_ode.next_pos(drone)
         drone.update(map.z, pos_ode.pos, pos_ode.vel)
+
+        plot.drone_pos(pos_ode.pos[0], pos_ode.pos[1],
+                       pos_ode.vel[0], pos_ode.vel[1], dt=0.05)
+        time.sleep(0.05)
         if pos_ode.terminal():
             break
 
@@ -85,3 +99,14 @@ q = ax.quiver(drone.y, drone.x, fx_all, fy_all)
 ax.quiverkey(q, X=0.3, Y=1.1, U=10,
              label='Quiver key, length = 10', labelpos='E')
 plt.show()
+for x in range(10):
+    plot = anim(xlim = xlim, ylim = ylim)
+    plot.apply_map(map.x, map.y, map.z)
+    pos = np.asarray(pos_ode.pos_hist)
+    vel = np.asarray(pos_ode.vel_hist)
+    for i in range(pos.shape[0]):
+        plot.drone_pos(pos[i,0],pos[i,1], vel[i,0], vel[i,1], dt = 0.05)
+        time.sleep(0.05)
+
+    time.sleep(1)
+pygame.quit()
