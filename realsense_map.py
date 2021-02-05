@@ -25,7 +25,7 @@ class realsense_map():
         self.dy = (ylim[1] - ylim[0]) / size[1]
 
 
-        self.d_max = 2.5 # limit of influence from map
+        self.d_max = 4 # limit of influence from map
         self.d_min = min(self.dx, self.dy) # Stops F = inf
 
         # generate 2 2d grids for the x & y bounds
@@ -63,7 +63,7 @@ class realsense_map():
             t = (t * n_mul).round().astype(int).T
             t = t[t.min(axis=1)>=0, :]
 
-            t=np.minimum(t, 74)
+            t=np.minimum(t, self.size_x)
 
             for idx, xy in enumerate(t):
                 if z[xy[1], xy[0]] == 1:
@@ -81,8 +81,8 @@ class realsense_map():
         dxdy2[dxdy2 < self.d_min ** 2] = self.d_min ** 2
 
         if type == 'square':
-            # self.f_map = np.divide(0.4*self.z, dxdy2)
-            self.f_map = np.divide(1.0 * self.z, dxdy2)
+            self.f_map = np.divide(0.4*self.z, dxdy2)
+            # self.f_map = np.divide(1.0 * self.z, dxdy2)
 
         if type == 'gaussian':
             self.f_map = 5*np.exp(-np.sqrt(dxdy2)) * self.z

@@ -34,17 +34,11 @@ class anim():
 
         pygame.draw.rect(self.screen, color, pygame.Rect(l, t, w, h))
 
-    def apply_map(self, x, y, z):
+    def apply_map(self, x, y, z, color = (255,0,0)):
         tx, ty = np.indices(z.shape)
 
         tx = tx[z==1].reshape(-1)
         ty = ty[z==1].reshape(-1)
-        color = []
-        for pos in np.asarray([tx,ty]).T:
-            color.append(255 * z[pos[0], pos[1]])
-
-        color = np.asarray(color).astype(int)
-        color = np.maximum(color, 0)
 
         px = (x[tx, ty] * self.dxdy[0]).astype(int)
         py = (self.n_pix[1] - (y[tx, ty] * self.dxdy[1])).astype(int)
@@ -53,7 +47,7 @@ class anim():
         for idx,pos in enumerate(pxpy):
             pos = pos+self.padding
             pygame.draw.rect(surface = self.screen,
-                             color = (color[idx],0,0),
+                             color = color,
                              rect = pygame.Rect(pos[0], pos[1], 7, 7),
                              width = 0)
 

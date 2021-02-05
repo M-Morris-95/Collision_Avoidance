@@ -6,17 +6,19 @@ from ode_solver import *
 from scipy import signal
 
 start = np.asarray([1.5,1.5])
-end = np.asarray([8.5,1.5])
+end = np.asarray([8.5,8.5])
 
 xlim = [0,10]
 ylim = [0,10]
-
-map = map_2d(xlim = xlim,
+size = [100,100]
+map = map_2d(size = size,
+            xlim = xlim,
              ylim = ylim,
              start=start,
              end=end)
 
-drone = realsense_map(xlim = xlim,
+drone = realsense_map(size = size,
+                  xlim = xlim,
                   ylim = ylim,
                   map = map.z)
 
@@ -27,22 +29,22 @@ pos_ode = pos_solv(start=start,
 map.custom_map()
 map.plot(map.z)
 
-for run in range(5):
+for run in range(1):
     pos_ode = pos_solv(start=start, end=end)
 
-    pos_ode.noise_param['sigma'] = run * 0.1
+    pos_ode.noise_param['sigma'] = 1.5
+    # run * 0.1
     drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
     plot = anim(xlim = xlim, ylim = ylim)
-    plot.apply_map(map.x, map.y, map.z)
+    # plot.apply_map(map.x, map.y, map.z)
 
+    plot.apply_map(map.x, map.y, map.z, (255,200,200))
 
-
-
-    for i in range(200):
+    for i in range(2500):
         pos_ode.next_pos(drone)
         drone.update(map.z, pos_ode.pos, pos_ode.vel)
-
+        plot.apply_map(map.x, map.y, drone.z,  (255,0,0))
         plot.drone_pos(pos_ode.pos[0], pos_ode.pos[1],
                        pos_ode.vel[0], pos_ode.vel[1], dt=0.05)
         time.sleep(0.05)

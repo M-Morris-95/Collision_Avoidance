@@ -30,10 +30,10 @@ class map_2d():
 
         self.z = np.zeros(self.x.shape) + np.random.normal(0, 0.000, self.x.shape)
 
-        self.z[0, :] = 1
-        self.z[-1, :] = 1
-        self.z[:, 0] = 1
-        self.z[:, -1] = 1
+        self.z[:2, :] = 1
+        self.z[-2:, :] = 1
+        self.z[:, :2] = 1
+        self.z[:, -2:] = 1
 
         return None
 
@@ -58,8 +58,8 @@ class map_2d():
         self.z[pos[1] + num_vox[0]:pos[1] + num_vox[1], pos[0] + num_vox[0]:pos[0] + num_vox[1]] = val
 
     def custom_map(self):
-        x = np.asarray([[2.8, 3.2],
-             [2.8, 3.2],
+        x = np.asarray([[1.8, 2.2],
+             [1.8, 2.2],
              [4.8, 5.2],
              [6.8, 7.2],
              [6.8, 7.2]]) / self.dx
