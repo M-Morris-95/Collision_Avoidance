@@ -24,13 +24,15 @@ class realsense_map():
         self.dx = (xlim[1] - xlim[0]) / size[0]
         self.dy = (ylim[1] - ylim[0]) / size[1]
 
-
-        self.d_max = 4 # limit of influence from map
+        self.d_max = 0.5 # limit of influence from map
         self.d_min = min(self.dx, self.dy) # Stops F = inf
 
         # generate 2 2d grids for the x & y bounds
         self.x, self.y = np.meshgrid(np.arange(xlim[0], xlim[1]+self.dx, self.dx),
                                      np.arange(ylim[0], ylim[1]+self.dy, self.dy))
+
+        self.mxy = np.asarray([int(self.d_max / self.dx),int(self.d_max / self.dy)])
+
 
         self.z = np.zeros(map.shape)
 
@@ -40,7 +42,30 @@ class realsense_map():
         self.r_min = 0.6
         self.r_max = 6.0
 
+        self.dxm = np.tile(np.linspace(self.d_max, -self.d_max, int(self.d_max/self.dx*2+1)), (int(self.d_max/self.dx*2+1),1))
+        self.dym = np.tile(np.linspace(self.d_max, - self.d_max, int(self.d_max/self.dx*2+1))[:, np.newaxis], (1,int(self.d_max/self.dx*2+1)))
+        self.dxdy2 = np.square(self.dxm) + np.square(self.dym)
+        self.dxdy2[self.dxdy2 < self.d_min ** 2] = self.d_min ** 2
+        thetas = np.arctan2(self.dxm, self.dym)
+        self.s_theta = np.sin(thetas)
+        self.c_theta = np.cos(thetas)
+
     def update(self, z, pos, dir):
+        # r, thetas = cart2pol(self.x - pos[0], self.y - pos[1])
+        # r[thetas < theta + self.neg_fov] = 0
+        # r[thetas > theta + self.pos_fov] = 0
+        # r[r > self.r_max] = 0
+        # r[r < self.r_min] = 0
+        # thetas = np.round(thetas / 0.016, 0).astype(int)
+        #
+        # for i in np.linspace(-469, 469, 469*2+1):
+        #     a = (thetas == int(i)) * r
+        #     a[a == 0] = np.inf
+        #     pos = np.argwhere(a == a.min())[0]
+        #     if z[pos[1], pos[0]] == 1:
+        #
+        #         self.z[pos[1],pos[0]] == 1
+
         theta = np.arctan2(dir[1],dir[0])
         num_th = 25
         num_r = 41
@@ -49,6 +74,9 @@ class realsense_map():
         seen_arr = np.zeros((num_th)) + 1
 
         orig_angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
+
+
+
 
         for r in np.linspace(self.r_min, self.r_max, num_r):
             angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
@@ -71,26 +99,26 @@ class realsense_map():
 
                     seen_arr[np.argwhere(orig_angles == angles[idx])[0][0]] = 0
 
-    def get_f(self, pos, type = 'square'):
-        dx = pos[0] - self.x
-        dy = pos[1] - self.y
+    def get_f(self, pos, type = 'square', return_sum = False):
+        pos_b = (pos / np.asarray([self.dx, self.dy])).round(0).astype(int)
+        min = np.max([pos_b - self.mxy, np.asarray([0,0])], 0)
+        max = np.min([pos_b + self.mxy+1, np.asarray(self.z.shape)], 0)
 
-        dxdy2 = np.square(dx) + np.square(dy)
+        t_z = self.z[min[1]:max[1], min[0]:max[0]]
 
-        dxdy2[dxdy2 > self.d_max ** 2] = np.inf
-        dxdy2[dxdy2 < self.d_min ** 2] = self.d_min ** 2
+        if t_z.shape != self.dxdy2.shape:
+            t = np.zeros(self.dxdy2.shape)
+            t_max = np.max([self.mxy-pos_b, np.asarray([0, 0])], 0)
+            t_min = np.min([np.asarray(self.z.shape) +(self.mxy)-pos_b, [11,11]],0)
+            t[t_max[1]:t_min[1], t_max[0]:t_min[0]] = t_z
+            t_z = t
 
-        if type == 'square':
-            self.f_map = np.divide(0.4*self.z, dxdy2)
-            # self.f_map = np.divide(1.0 * self.z, dxdy2)
+        self.f_map = np.divide(t_z, self.dxdy2)
 
-        if type == 'gaussian':
-            self.f_map = 5*np.exp(-np.sqrt(dxdy2)) * self.z
+        fx = np.multiply(self.s_theta, self.f_map).sum()
+        fy = np.multiply(self.c_theta, self.f_map).sum()
 
+        if return_sum:
+            return fx, fy, self.f_map.sum()
 
-        thetas = np.arctan2(dx, dy)
-
-        fx = np.multiply(np.sin(thetas), self.f_map).sum()
-        fy = np.multiply(np.cos(thetas), self.f_map).sum()
-
-        return fx, fy, self.f_map.sum()
+        return fx, fy

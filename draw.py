@@ -80,6 +80,41 @@ class anim():
                          center = (px_1, py_1),
                          radius = 2)
 
+        angle = np.arctan2(px_2-px_1, py_2-py_1) - np.radians(90)
+
+        pygame.draw.arc(surface=self.screen,
+                        color = (0,255,255),
+                        rect = [px_1-0.6*self.dxdy[0], py_1-0.6*self.dxdy[1], 1.2*self.dxdy[0], 1.2*self.dxdy[1]],
+                        start_angle = angle - np.radians(43),
+                        stop_angle=angle + np.radians(43),
+                        width = 1
+                        )
+
+        pygame.draw.arc(surface=self.screen,
+                        color = (0,255,255),
+                        rect = [px_1-6*self.dxdy[0], py_1-6*self.dxdy[1], 12*self.dxdy[0], 12*self.dxdy[1]],
+                        start_angle = angle - np.radians(43),
+                        stop_angle=angle + np.radians(43),
+                        width = 1
+                        )
+
+        pygame.draw.line(surface=self.screen,
+                         color = (0,255,255),
+                         start_pos=(px_1 + self.dxdy[0]*(0.6 * np.sin(angle + np.radians(43))), py_1 + self.dxdy[1]*(0.6 * np.cos(angle + np.radians(43)))),
+                         end_pos=(px_1 + self.dxdy[0]*(6.0 * np.sin(angle + np.radians(43))), py_1 + self.dxdy[1]*(6.0 * np.cos(angle + np.radians(43))))
+                         )
+
+        pygame.draw.line(surface=self.screen,
+                         color = (0,255,255),
+                         start_pos=(px_1 + self.dxdy[0]*(0.6 * np.sin(angle + 3*np.radians(43))), py_1 + self.dxdy[1]*(0.6 * np.cos(angle + 3*np.radians(43)))),
+                         end_pos=(px_1 + self.dxdy[0]*(6.0 * np.sin(angle + 3*np.radians(43))), py_1 + self.dxdy[1]*(6.0 * np.cos(angle +3*np.radians(43))))
+                         )
+
+
+
+
+
+
         pygame.display.flip()
         return True
 

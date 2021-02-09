@@ -7,6 +7,7 @@ from scipy import signal
 
 start = np.asarray([1.5,1.5])
 end = np.asarray([8.5,8.5])
+dt = 0.025
 
 xlim = [0,10]
 ylim = [0,10]
@@ -25,30 +26,38 @@ drone = realsense_map(size = size,
 pos_ode = pos_solv(start=start,
                    end=end)
 
-# map.fill_map()
-map.custom_map()
+map.fill_map()
+# map.custom_map()
 map.plot(map.z)
 
 for run in range(1):
     pos_ode = pos_solv(start=start, end=end)
 
-    pos_ode.noise_param['sigma'] = 1.5
+    pos_ode.noise_param['sigma'] = 0
     # run * 0.1
     drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
     plot = anim(xlim = xlim, ylim = ylim)
     # plot.apply_map(map.x, map.y, map.z)
 
-    plot.apply_map(map.x, map.y, map.z, (255,200,200))
 
-    for i in range(2500):
-        pos_ode.next_pos(drone)
+    t=0
+    # for i in range(150):
+    while True:
+        pos_ode.next_pos(drone, dt=dt)
         drone.update(map.z, pos_ode.pos, pos_ode.vel)
-        plot.apply_map(map.x, map.y, drone.z,  (255,0,0))
+
+        plot.screen.fill(pygame.Color("white"))
+        plot.apply_map(map.x, map.y, map.z, (255, 200, 200))
+        plot.apply_map(map.x, map.y, drone.z,  (255, 0, 0))
         plot.drone_pos(pos_ode.pos[0], pos_ode.pos[1],
-                       pos_ode.vel[0], pos_ode.vel[1], dt=0.05)
-        time.sleep(0.05)
+                       pos_ode.vel[0], pos_ode.vel[1], dt=dt)
+        time.sleep(dt)
         if pos_ode.terminal():
+            break
+        t = t+dt
+
+        if t > 5:
             break
 
     pos = (np.asarray(pos_ode.pos_hist) / np.asarray([map.dx, map.dy])).astype(int)
@@ -80,9 +89,10 @@ f_all = np.zeros(map.x.shape)
 fx_all = np.zeros(map.x.shape)
 fy_all = np.zeros(map.x.shape)
 
+drone.z = map.z
 for idx_x, x in enumerate(np.arange(drone.xlim[0], drone.xlim[1] + drone.dx, drone.dx)):
     for idx_y, y in enumerate(np.arange(drone.ylim[0], drone.ylim[1] + drone.dy, drone.dy)):
-        fx, fy, f = drone.get_f([x,y])
+        fx, fy, f = drone.get_f([x,y], return_sum = True)
 
         dxdy = pos_ode.end - np.asarray([x,y])
 
@@ -107,8 +117,8 @@ for x in range(10):
     pos = np.asarray(pos_ode.pos_hist)
     vel = np.asarray(pos_ode.vel_hist)
     for i in range(pos.shape[0]):
-        plot.drone_pos(pos[i,0],pos[i,1], vel[i,0], vel[i,1], dt = 0.05)
-        time.sleep(0.05)
+        plot.drone_pos(pos[i,0],pos[i,1], vel[i,0], vel[i,1], dt = dt)
+        time.sleep(dt)
 
     time.sleep(1)
 pygame.quit()

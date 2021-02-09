@@ -9,7 +9,7 @@ class pos_solv():
         self.dxdy = np.sqrt(np.square(start - end).sum())
 
         self.tol = 0.1
-        self.mass = 2.5
+        self.mass = 1.0
         self.f_goal = 10
 
         self.noise = np.asarray([0,0])
@@ -22,7 +22,7 @@ class pos_solv():
         self.noise = self.noise * (1-1/self.noise_param['decay_period']) + np.random.normal(self.noise_param['mu'], self.noise_param['sigma'], 2)
 
     def get_f(self, map):
-        fx, fy, _ = map.get_f(self.pos)
+        fx, fy = map.get_f(self.pos)
 
         self.dxdy = self.end - self.pos
 
