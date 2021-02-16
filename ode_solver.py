@@ -1,19 +1,19 @@
 import numpy as np
 
 class pos_solv():
-    def __init__(self, start = np.array([1,5]), end = np.array([9,5])):
+    def __init__(self, start = np.array([1,5]), end = np.array([9,5]), sigma = 0.5):
         self.pos_hist = [start]
 
         self.pos = start
         self.end = end
         self.dxdy = np.sqrt(np.square(start - end).sum())
 
-        self.tol = 0.1
+        self.tol = 0.5
         self.mass = 1.0
         self.f_goal = 10
 
         self.noise = np.asarray([0,0])
-        self.noise_param = {'mu':0, 'sigma':0.5, 'decay_period':100}
+        self.noise_param = {'mu':0, 'sigma':sigma, 'decay_period':100}
 
         self.vel = np.array([0,0])
         self.vel_hist = [self.vel]
@@ -56,3 +56,10 @@ class pos_solv():
         if dist < self.tol:
             return True
         return False
+
+    def update(self, pos=0,vel=0):
+        self.pos = pos
+        self.vel = vel
+
+        self.vel_hist.append(self.vel)
+        self.pos_hist.append(self.pos)

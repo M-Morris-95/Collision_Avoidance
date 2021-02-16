@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 def cart2pol(x, y):
     rho = np.sqrt(x**2 + y**2)
@@ -24,7 +25,7 @@ class realsense_map():
         self.dx = (xlim[1] - xlim[0]) / size[0]
         self.dy = (ylim[1] - ylim[0]) / size[1]
 
-        self.d_max = 0.5 # limit of influence from map
+        self.d_max = 1.0 # limit of influence from map
         self.d_min = min(self.dx, self.dy) # Stops F = inf
 
         # generate 2 2d grids for the x & y bounds
@@ -51,53 +52,60 @@ class realsense_map():
         self.c_theta = np.cos(thetas)
 
     def update(self, z, pos, dir):
-        # r, thetas = cart2pol(self.x - pos[0], self.y - pos[1])
-        # r[thetas < theta + self.neg_fov] = 0
-        # r[thetas > theta + self.pos_fov] = 0
-        # r[r > self.r_max] = 0
-        # r[r < self.r_min] = 0
-        # thetas = np.round(thetas / 0.016, 0).astype(int)
+        r, thetas = cart2pol(self.x - pos[0], self.y - pos[1])
+        thetas = thetas - np.arctan2(dir[1], dir[0])
+
+        t_z = copy.copy(z)
+
+        t_z[r > 6.0] = 0
+        t_z[r < 0.6] = 0
+
+        num = 25
+        angles = np.linspace(-np.radians(43), np.radians(43), num)
+
+        for t in range(num):
+            try:
+                a = np.logical_and.reduce((thetas != 0, thetas >= angles[t], thetas <= angles[t+1], t_z != 0))
+                idx = np.argwhere(a)
+                num = r[a].argmin()
+                self.z[idx[num, 0], idx[num,1]] = 1
+            except:
+                pass
+
+
+
+
+
+
+        # theta = np.arctan2(dir[1],dir[0])
+        # num_th = 25
+        # num_r = 41
         #
-        # for i in np.linspace(-469, 469, 469*2+1):
-        #     a = (thetas == int(i)) * r
-        #     a[a == 0] = np.inf
-        #     pos = np.argwhere(a == a.min())[0]
-        #     if z[pos[1], pos[0]] == 1:
+        # mul = np.asarray([1/self.dx, 1/self.dy])
+        # seen_arr = np.zeros((num_th)) + 1
         #
-        #         self.z[pos[1],pos[0]] == 1
-
-        theta = np.arctan2(dir[1],dir[0])
-        num_th = 25
-        num_r = 41
-
-        mul = np.asarray([1/self.dx, 1/self.dy])
-        seen_arr = np.zeros((num_th)) + 1
-
-        orig_angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
-
-
-
-
-        for r in np.linspace(self.r_min, self.r_max, num_r):
-            angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
-            angles = angles * seen_arr
-            angles = angles[angles != 0]
-
-            n_seen = angles.shape[0]
-            n_pos = np.tile(pos, [n_seen, 1]).T
-            n_mul = np.tile(mul, [n_seen, 1]).T
-
-            t = pol2cart(r, theta+angles) + n_pos
-            t = (t * n_mul).round().astype(int).T
-            t = t[t.min(axis=1)>=0, :]
-
-            t=np.minimum(t, self.size_x)
-
-            for idx, xy in enumerate(t):
-                if z[xy[1], xy[0]] == 1:
-                    self.z[xy[1], xy[0]] = 1
-
-                    seen_arr[np.argwhere(orig_angles == angles[idx])[0][0]] = 0
+        # orig_angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
+        #
+        # for r in np.linspace(self.r_min, self.r_max, num_r):
+        #     angles = np.linspace(self.neg_fov, self.pos_fov, num_th)
+        #     angles = angles * seen_arr
+        #     angles = angles[angles != 0]
+        #
+        #     n_seen = angles.shape[0]
+        #     n_pos = np.tile(pos, [n_seen, 1]).T
+        #     n_mul = np.tile(mul, [n_seen, 1]).T
+        #
+        #     t = pol2cart(r, theta+angles) + n_pos
+        #     t = (t * n_mul).round().astype(int).T
+        #     t = t[t.min(axis=1)>=0, :]
+        #
+        #     t=np.minimum(t, self.size_x)
+        #
+        #     for idx, xy in enumerate(t):
+        #         if z[xy[1], xy[0]] == 1:
+        #             self.z[xy[1], xy[0]] = 1
+        #
+        #             seen_arr[np.argwhere(orig_angles == angles[idx])[0][0]] = 0
 
     def get_f(self, pos, type = 'square', return_sum = False):
         pos_b = (pos / np.asarray([self.dx, self.dy])).round(0).astype(int)
@@ -110,7 +118,10 @@ class realsense_map():
             t = np.zeros(self.dxdy2.shape)
             t_max = np.max([self.mxy-pos_b, np.asarray([0, 0])], 0)
             t_min = np.min([np.asarray(self.z.shape) +(self.mxy)-pos_b, [11,11]],0)
-            t[t_max[1]:t_min[1], t_max[0]:t_min[0]] = t_z
+            try:
+                t[t_max[1]:t_min[1], t_max[0]:t_min[0]] = t_z
+            except:
+                pass
             t_z = t
 
         self.f_map = np.divide(t_z, self.dxdy2)
@@ -122,3 +133,18 @@ class realsense_map():
             return fx, fy, self.f_map.sum()
 
         return fx, fy
+
+    def get_risk(self, pos_list, k=0, type = 'square', return_sum = False):
+        tot = []
+        for pos in pos_list[k:k+50]:
+            pos_b = (pos / np.asarray([self.dx, self.dy])).round(0).astype(int)
+            min = np.max([pos_b - self.mxy, np.asarray([0,0])], 0)
+            max = np.min([pos_b + self.mxy+1, np.asarray(self.z.shape)], 0)
+
+            t_z = self.z[min[1]:max[1], min[0]:max[0]]
+
+            f_map = np.divide(t_z, self.dxdy2[0:t_z.shape[0], 0:t_z.shape[1]])
+
+            tot.append(f_map.sum())
+
+        return np.asarray(tot)

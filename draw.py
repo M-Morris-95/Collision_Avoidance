@@ -1,10 +1,12 @@
 import pygame
+import pygame.gfxdraw
 import numpy as np
 from map import *
 from ode_solver import *
 import time
+
 class anim():
-    def __init__(self, xlim = [0,10], ylim = [0,10]):
+    def __init__(self, xlim = [0,10], ylim = [0,10], x = 0, y = 0):
         pygame.init()
 
         # Set up the drawing window
@@ -13,7 +15,7 @@ class anim():
 
         self.n_pix = np.asarray([500, 500])
         self.padding = np.asarray([50, 50])
-        self.screen = pygame.display.set_mode(self.n_pix+self.padding*2)
+        self.screen = pygame.display.set_mode(size=(self.n_pix+self.padding*2))
 
         dx = self.n_pix[0] / (xlim[1] - xlim[0])
         dy = self.n_pix[1] / (ylim[1] - ylim[0])
@@ -21,7 +23,10 @@ class anim():
         self.dxdy = np.asarray([dx, dy])
         self.screen.fill((255, 255, 255))
 
-        pygame.display.flip()
+        self.x = x
+        self.y = y
+
+
     def plot_sq(self, pos, sq_size, color = (0,0,255)):
 
         sq_size = sq_size * self.dxdy
@@ -51,8 +56,28 @@ class anim():
                              rect = pygame.Rect(pos[0], pos[1], 7, 7),
                              width = 0)
 
-        pygame.display.flip()
+
         return True
+
+    def update(self, true_map, drone_map, drone_pos, drone_vel, dt, route, path):
+        self.screen.fill(pygame.Color("white"))
+        self.apply_map(self.x, self.y, true_map, (255, 200, 200))
+        self.apply_map(self.x, self.y, drone_map, (255, 0, 0))
+        self.drone_pos(drone_pos[0], drone_pos[1], drone_vel[0], drone_vel[1], dt = dt)
+
+        x, y = self.xy2pix(route[:, 0], route[:, 1])
+        for px, py in zip(x, y):
+            pygame.draw.circle(surface=self.screen,
+                               color=(0, 0, 255),
+                               center=(px, py),
+                               radius=2)
+        path = np.asarray(path)
+        x, y = self.xy2pix(path[:, 0], path[:, 1])
+        for px, py in zip(x, y):
+            pygame.draw.circle(surface=self.screen,
+                               color=(0, 255, 255),
+                               center=(px, py),
+                               radius=2)
 
     def xy2pix(self, x, y=None):
         x = (x - self.xlim[0]) / (self.xlim[1] - self.xlim[0])
@@ -67,55 +92,67 @@ class anim():
 
     def drone_pos(self, px, py, vx, vy, dt = 0.05):
         px_1, py_1 = self.xy2pix(px, py)
-        px_2, py_2 = self.xy2pix(px+vx*dt, py+vy*dt)
-
-        # pygame.draw.line(surface=self.screen,
-        #                  color=(0, 255, 0),
-        #                  start_pos = (px_1, py_1),
-        #                  end_pos = (px_2, py_2),
-        #                  width=3)
 
         pygame.draw.circle(surface=self.screen,
                          color=(0, 255, 0),
                          center = (px_1, py_1),
                          radius = 2)
 
-        angle = np.arctan2(px_2-px_1, py_2-py_1) - np.radians(90)
+        angle = np.arctan2(vx, vy)
 
-        pygame.draw.arc(surface=self.screen,
-                        color = (0,255,255),
-                        rect = [px_1-0.6*self.dxdy[0], py_1-0.6*self.dxdy[1], 1.2*self.dxdy[0], 1.2*self.dxdy[1]],
-                        start_angle = angle - np.radians(43),
-                        stop_angle=angle + np.radians(43),
-                        width = 1
+        if angle < 0.5:
+            pass
+
+
+        pygame.gfxdraw.arc(self.screen,
+                        px_1,
+                        py_1,
+                        int(0.6*self.dxdy[0]),
+                        int(np.degrees(angle)-43-90),
+                        int(np.degrees(angle)+43-90),
+                        (255, 0, 255),
                         )
 
-        pygame.draw.arc(surface=self.screen,
-                        color = (0,255,255),
-                        rect = [px_1-6*self.dxdy[0], py_1-6*self.dxdy[1], 12*self.dxdy[0], 12*self.dxdy[1]],
-                        start_angle = angle - np.radians(43),
-                        stop_angle=angle + np.radians(43),
-                        width = 1
+        pygame.gfxdraw.arc(self.screen,
+                        px_1,
+                        py_1,
+                        int(6*self.dxdy[0]),
+                        int(np.degrees(angle)-43-90),
+                        int(np.degrees(angle)+43-90),
+                        (255, 0, 255),
                         )
 
-        pygame.draw.line(surface=self.screen,
-                         color = (0,255,255),
-                         start_pos=(px_1 + self.dxdy[0]*(0.6 * np.sin(angle + np.radians(43))), py_1 + self.dxdy[1]*(0.6 * np.cos(angle + np.radians(43)))),
-                         end_pos=(px_1 + self.dxdy[0]*(6.0 * np.sin(angle + np.radians(43))), py_1 + self.dxdy[1]*(6.0 * np.cos(angle + np.radians(43))))
-                         )
-
-        pygame.draw.line(surface=self.screen,
-                         color = (0,255,255),
-                         start_pos=(px_1 + self.dxdy[0]*(0.6 * np.sin(angle + 3*np.radians(43))), py_1 + self.dxdy[1]*(0.6 * np.cos(angle + 3*np.radians(43)))),
-                         end_pos=(px_1 + self.dxdy[0]*(6.0 * np.sin(angle + 3*np.radians(43))), py_1 + self.dxdy[1]*(6.0 * np.cos(angle +3*np.radians(43))))
-                         )
 
 
+        lx1, ly1, = self.xy2pix(px + 0.6*np.sin(angle + np.radians(43)), py + 0.6*np.cos(angle + np.radians(43)))
+        lx2, ly2, = self.xy2pix(px + 6 * np.sin(angle + np.radians(43)), py + 6 * np.cos(angle + np.radians(43)))
+        # pygame.draw.line(surface=self.screen,
+        #                  color = (255,0,255),
+        #                  start_pos=(lx1, ly1),
+        #                  end_pos=(lx2, ly2),
+        #                 width = 2
+        #                  )
+
+        pygame.gfxdraw.line(self.screen,
+                            lx1,
+                            ly1,
+                            lx2,
+                            ly2,
+                            (255,0,255),
+                            )
+
+        lx1, ly1, = self.xy2pix(px + 0.6*np.sin(angle + np.radians(-43)), py + 0.6*np.cos(angle + np.radians(-43)))
+        lx2, ly2, = self.xy2pix(px + 6 * np.sin(angle + np.radians(-43)), py + 6 * np.cos(angle + np.radians(-43)))
+        pygame.gfxdraw.line(self.screen,
+                            lx1,
+                            ly1,
+                            lx2,
+                            ly2,
+                            (255,0,255),
+                            )
 
 
 
-
-        pygame.display.flip()
         return True
 
 
