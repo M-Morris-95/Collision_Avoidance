@@ -150,15 +150,25 @@ class path_finder():
         try:
             route_len = np.sum(np.sqrt(np.sum((np.square(np.diff(route, axis=0))), 1)))
 
-            max_t = route_len / self.speed
+            num_time_steps = int(route_len / self.speed / dt)
+            end_time = (route.shape[0] - 1) * dt,
 
-            new_times = np.linspace(0, (route.shape[0] - 1) * dt, int(max_t / dt))
+            crude_t = np.linspace(0, end_time, 50)
             splx = splrep(t, route[:, 0])
             sply = splrep(t, route[:, 1])
 
-            splev(new_times, splx)
-            splev(new_times, sply)
-            route = np.asarray([splev(new_times, splx),splev(new_times, sply)]).T
+            x = splev(crude_t, splx)
+            y = splev(crude_t, sply)
+
+            fine_t = np.linspace(0, end_time, num_time_steps)
+            splx = splrep(crude_t, x)
+            sply = splrep(crude_t, y)
+
+            x = splev(fine_t, splx)
+            y = splev(fine_t, sply)
+
+
+            route = np.asarray([x,y]).T.squeeze()
         except:
             pass
         return route

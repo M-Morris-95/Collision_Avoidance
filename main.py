@@ -7,13 +7,13 @@ from path_finder import *
 
 start = np.asarray([1.25,1.5])
 end = np.asarray([8.75,8.5])
-dt = 1/30
+dt = 1/60
 
 xlim = [0,10]
 ylim = [0,10]
 size = [100,100]
 
-# map.custom_map()
+
 # map.plot(map.z)
 
 do_plt = True
@@ -26,7 +26,8 @@ for _ in range(10):
                  start=start,
                  end=end)
 
-    map.fill_map()
+    # map.fill_map()
+    map.custom_map()
 
     k = 1
     drone = realsense_map(size=size,
@@ -57,8 +58,7 @@ for _ in range(10):
 
         # decide whether make new route or keep old one
         risk = drone.get_risk(route, k=k).max()
-        print(risk)
-        if np.logical_or((risk > 50), k >= route.shape[0]-1):
+        if np.logical_and(k>5, np.logical_or((risk > 50), k >= route.shape[0]-1)):
             k = 1
             route = path.get_route(map = drone, dt = dt, pos=pos_ode.pos,vel=end)
         else:
@@ -88,7 +88,7 @@ for _ in range(10):
         if pos_ode.terminal():
             break
 
-        if t > 50:
+        if t > 10:
             break
 
     pygame.quit()
