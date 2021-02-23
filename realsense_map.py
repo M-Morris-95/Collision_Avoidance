@@ -134,9 +134,9 @@ class realsense_map():
 
         return fx, fy
 
-    def get_risk(self, pos_list, k=0, type = 'square', return_sum = False):
+    def get_risk(self, pos_list, k=0, n = 100, type = 'square', return_sum = False):
         tot = []
-        for pos in pos_list[k:k+50]:
+        for pos in pos_list[k:k+n]:
             pos_b = (pos / np.asarray([self.dx, self.dy])).round(0).astype(int)
             min = np.max([pos_b - self.mxy, np.asarray([0,0])], 0)
             max = np.min([pos_b + self.mxy+1, np.asarray(self.z.shape)], 0)

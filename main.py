@@ -26,8 +26,8 @@ for _ in range(10):
                  start=start,
                  end=end)
 
-    # map.fill_map()
-    map.custom_map()
+    map.fill_map()
+    # map.custom_map()
 
     k = 1
     drone = realsense_map(size=size,
@@ -42,7 +42,7 @@ for _ in range(10):
                         end=end,
                         sigma=0.25)
 
-    route = path.get_route(drone, dt, pos_ode.pos)
+    route, options = path.get_route(map = drone, pos=pos_ode.pos,vel=end, dt = dt, )
     drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
     if do_plt:
@@ -57,10 +57,10 @@ for _ in range(10):
         drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
         # decide whether make new route or keep old one
-        risk = drone.get_risk(route, k=k).max()
-        if np.logical_and(k>5, np.logical_or((risk > 50), k >= route.shape[0]-1)):
+        risk = drone.get_risk(route, k=k, n=100).max()
+        if np.logical_and(k>5, np.logical_or((risk > 100), k >= route.shape[0]-1)):
             k = 1
-            route = path.get_route(map = drone, dt = dt, pos=pos_ode.pos,vel=end)
+            route, options = path.get_route(map = drone, pos=pos_ode.pos,vel=end, dt = dt, )
         else:
             k = k+1
 
@@ -78,6 +78,7 @@ for _ in range(10):
                         drone_vel = (pos_ode.vel[0], pos_ode.vel[1]),
                         dt = dt,
                         route = route,
+                        optional_routes = options,
                         path = pos_ode.pos_hist)
             #
 
@@ -88,7 +89,7 @@ for _ in range(10):
         if pos_ode.terminal():
             break
 
-        if t > 10:
+        if t > 50:
             break
 
     pygame.quit()

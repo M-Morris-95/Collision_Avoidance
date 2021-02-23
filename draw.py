@@ -17,6 +17,13 @@ class anim():
         self.padding = np.asarray([50, 50])
         self.screen = pygame.display.set_mode(size=(self.n_pix+self.padding*2))
 
+
+        self.screen_alpha = pygame.Surface((self.n_pix+self.padding*2))  # the size of your rect
+
+
+        self.screen_alpha.set_alpha(55)  # alpha level
+
+
         dx = self.n_pix[0] / (xlim[1] - xlim[0])
         dy = self.n_pix[1] / (ylim[1] - ylim[0])
 
@@ -59,12 +66,27 @@ class anim():
 
         return True
 
-    def update(self, true_map, drone_map, drone_pos, drone_vel, dt, route, path):
+    def update(self, true_map, drone_map, drone_pos, drone_vel, dt, route, optional_routes, path):
         self.screen.fill(pygame.Color("white"))
         self.apply_map(self.x, self.y, true_map, (255, 200, 200))
         self.apply_map(self.x, self.y, drone_map, (255, 0, 0))
         self.drone_pos(drone_pos[0], drone_pos[1], drone_vel[0], drone_vel[1], dt = dt)
 
+        # this fills the entire surface
+        self.screen_alpha.fill((255, 255, 255))
+
+        for option in optional_routes:
+            option = np.asarray(option)
+            x, y = self.xy2pix(option[:, 0], option[:, 1])
+            for px, py in zip(x, y):
+                pygame.draw.circle(surface=self.screen_alpha,
+                                   color=(0, 0, 255),
+                                   center=(px, py),
+                                   radius=1)
+
+        self.screen.blit(self.screen_alpha, (0, 0))
+
+        path = np.asarray(path)
         x, y = self.xy2pix(route[:, 0], route[:, 1])
         for px, py in zip(x, y):
             pygame.draw.circle(surface=self.screen,
