@@ -37,9 +37,8 @@ class map_2d():
 
         return None
 
-    def fill_map(self):
-        n_shapes = 20
-        size_of_shapes = 10
+    def fill_map(self, n_shapes=20, size_of_shapes=15):
+
 
         for _ in range(n_shapes):
             pos = [(self.size_x*np.random.random(1)).astype(int),

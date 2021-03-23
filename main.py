@@ -4,27 +4,26 @@ from map import *
 from ode_solver import *
 import time
 from path_finder import *
+import numpy as np
 
 start = np.asarray([1.25,1.5])
 end = np.asarray([8.75,8.5])
-dt = 1/60
+dt = 1/30
 
 xlim = [0,10]
 ylim = [0,10]
 size = [100,100]
 
 
-# map.plot(map.z)
-
 do_plt = True
 
 
-for _ in range(10):
+for _ in range(5):
     map = map_2d(size=size,
                  xlim=xlim,
                  ylim=ylim,
-                 start=start,
-                 end=end)
+                 start=start + np.random.normal(0, 0.1, 2),
+                 end=end + np.random.normal(0, 0.1, 2))
 
     map.fill_map()
     # map.custom_map()
@@ -42,7 +41,7 @@ for _ in range(10):
                         end=end,
                         sigma=0.25)
 
-    route, options = path.get_route(map = drone, pos=pos_ode.pos,vel=end, dt = dt, )
+    route, options, goals = path.get_route(map = drone, start=pos_ode.pos, dt = dt, )
     drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
     if do_plt:
@@ -57,18 +56,16 @@ for _ in range(10):
         drone.update(map.z, pos_ode.pos, pos_ode.vel)
 
         # decide whether make new route or keep old one
-        risk = drone.get_risk(route, k=k, n=100).max()
-        if np.logical_and(k>5, np.logical_or((risk > 100), k >= route.shape[0]-1)):
+        risk, risk_eval = path.get_risk(route, drone, k=k, n=10, method = 2)
+
+        if k>5 and (risk > 0 or k >= route.shape[0]-1):
             k = 1
-            route, options = path.get_route(map = drone, pos=pos_ode.pos,vel=end, dt = dt, )
+            route, options, goals = path.get_route(map = drone, start=pos_ode.pos, dt = dt)
+
         else:
             k = k+1
+        pos_ode.update(vel = (route[k] - pos_ode.pos) / dt, pos = route[k])
 
-        # update position
-        try:
-            pos_ode.update(vel = (route[k] - pos_ode.pos) / dt, pos = route[k])
-        except:
-            break
         t = t + dt
 
         if do_plt:
@@ -79,20 +76,19 @@ for _ in range(10):
                         dt = dt,
                         route = route,
                         optional_routes = options,
-                        path = pos_ode.pos_hist)
-            #
+                        path = pos_ode.pos_hist,
+                        risk=risk,
+                        risk_eval = risk_eval,
+                        goals = goals)
 
             while time.time() - start_t < dt:
                 time.sleep(0.00001)
             pygame.display.flip()
 
-        if pos_ode.terminal():
+        if pos_ode.terminal() or t > 50:
             break
 
-        if t > 50:
-            break
-
-    pygame.quit()
+    # pygame.quit()
 
 
 

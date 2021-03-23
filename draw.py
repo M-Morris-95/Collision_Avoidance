@@ -32,6 +32,7 @@ class anim():
 
         self.x = x
         self.y = y
+        self.font = pygame.font.SysFont(None, 24)
 
 
     def plot_sq(self, pos, sq_size, color = (0,0,255)):
@@ -66,25 +67,37 @@ class anim():
 
         return True
 
-    def update(self, true_map, drone_map, drone_pos, drone_vel, dt, route, optional_routes, path):
+    def update(self, true_map, drone_map, drone_pos, drone_vel, dt, route, optional_routes, path, risk=None, risk_eval=None, goals=None):
         self.screen.fill(pygame.Color("white"))
-        self.apply_map(self.x, self.y, true_map, (255, 200, 200))
-        self.apply_map(self.x, self.y, drone_map, (255, 0, 0))
+        if risk_eval is not None:
+            self.apply_map(self.x, self.y, risk_eval, '#ee9595')
+        self.apply_map(self.x, self.y, true_map, '#ffba93')
+        self.apply_map(self.x, self.y, drone_map, '#fa1e0e')
         self.drone_pos(drone_pos[0], drone_pos[1], drone_vel[0], drone_vel[1], dt = dt)
 
         # this fills the entire surface
         self.screen_alpha.fill((255, 255, 255))
-
-        for option in optional_routes:
-            option = np.asarray(option)
-            x, y = self.xy2pix(option[:, 0], option[:, 1])
-            for px, py in zip(x, y):
-                pygame.draw.circle(surface=self.screen_alpha,
-                                   color=(0, 0, 255),
-                                   center=(px, py),
-                                   radius=1)
-
         self.screen.blit(self.screen_alpha, (0, 0))
+
+        if optional_routes is not None:
+            for option in optional_routes:
+                option = np.asarray(option)
+                x, y = self.xy2pix(option[:, 0], option[:, 1])
+                for px, py in zip(x, y):
+                    pygame.draw.circle(surface=self.screen_alpha,
+                                       color=(0, 0, 255),
+                                       center=(px, py),
+                                       radius=1)
+
+            self.screen.blit(self.screen_alpha, (0, 0))
+
+        if goals is not None:
+            for goal in goals:
+                x, y = self.xy2pix(goal[0], goal[1])
+                pygame.draw.circle(surface=self.screen,
+                                   color=(0, 255, 255),
+                                   center=(x, y),
+                                   radius=2)
 
         path = np.asarray(path)
         x, y = self.xy2pix(route[:, 0], route[:, 1])
@@ -100,6 +113,13 @@ class anim():
                                color=(0, 255, 255),
                                center=(px, py),
                                radius=2)
+
+        if risk is not None:
+            font1 = pygame.font.SysFont('chalkduster.ttf', 32)
+
+            risk_str = 'calculated path risk: ' + str(np.round(risk))
+            img1 = font1.render(risk_str, True, (0, 0, 255))
+            self.screen.blit(img1, (80, 20))
 
     def xy2pix(self, x, y=None):
         x = (x - self.xlim[0]) / (self.xlim[1] - self.xlim[0])
