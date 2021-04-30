@@ -9,63 +9,26 @@ def pol2cart(rho, phi):
     y = rho * np.sin(phi)
     return np.asarray([x, y])
 
-def smooth(route):
-    # route smoothing, doesnt work
-    scale = 5
-    loop_min_size = 1.0
+def smooth(route, tol=0.05):
+    dist_mat = np.zeros((route.shape[0], route.shape[0])) + 10
+    for i in range(route.shape[0]):
+        err = np.tile(route[i], (route.shape[0] - i, 1)) - route[i:]
+        dist_mat[i, i:] = np.sqrt(np.sum(np.square(err),1))
 
-    hist = np.asarray(route)
-    hist = (hist * scale).round()
-    indexes = np.unique(hist, axis=0, return_index=True)[1]
-    hist = np.asarray([route[index] for index in sorted(indexes)])
+    dist_mat = dist_mat < tol
 
-    ## remove loops
-    l_map = np.zeros((hist.shape[0], hist.shape[0])) + 1
-    for i in range(hist.shape[0]):
-        for j in range(i + 1, hist.shape[0]):
-            l_map[i, j] = np.sqrt(np.sum(np.square(hist[i] - hist[j])))
-    positions = np.asarray(np.where(l_map < loop_min_size/scale)).T
+    new_route = [0]
+    while new_route[-1] < route.shape[0]-1:
+        new_route.append(np.argwhere(dist_mat[new_route[-1]]).max())
 
-    temp = []
-    for i in range(len(positions) - 1):
-        if positions[i, 0] != positions[i + 1, 0]:
-            if positions[i, 1] - positions[i, 0] > 1:
-                temp.append(positions[i])
-    temp = np.asarray(temp)
+    return route[new_route]
 
-    c_max = 0
-    n_temp = []
-    for i in range(len(temp)):
-        if temp[i, 1] > c_max:
-            n_temp.append(temp[i])
-            c_max = temp[i, 1]
-    n_temp = np.asarray(n_temp)
-
-    c_max = -1
-    n2_temp = []
-    for i in range(len(n_temp)):
-        if n_temp[i, 0] > c_max:
-            n2_temp.append(n_temp[i])
-            c_max = n_temp[i, 1]
-    n2_temp = np.asarray(n2_temp)
-
-    if n2_temp.size == 0:
-        new_route = hist
-    elif n2_temp.size == 2:
-        new_route = np.concatenate([hist[:n2_temp[0, 0]], hist[n2_temp[0, 1]:]])
-
+def route_length(route, slow=False):
+    if slow:
+        return np.sum(np.sqrt(np.sum(np.square(np.diff(route, 1, 0)),1)))
     else:
-        new_route = [hist[0:n2_temp[0, 0]]]
-        for i in range(len(n2_temp) - 1):
-            new_route.append(hist[n2_temp[i, 1]:n2_temp[i + 1, 0]])
-            new_route.append(hist[n2_temp[i + 1, 1]:])
+        return np.sqrt(np.sum(np.square(np.diff(route[:2], 1, 0)),1)) * len(route)
 
-
-        for i in range(len(new_route) - 1, -1, -1):
-            if new_route[i].size == 0:
-                new_route.pop(i)
-        new_route = np.concatenate(new_route)
-    return new_route
 
 class path_finder():
     def __init__(self, start = np.array([1,5]), end = np.array([9,5]), sigma = 0.5, speed=2):
@@ -88,10 +51,9 @@ class path_finder():
 
         velocity = velocity * self.max_speed/speed
         position = position + velocity * dt
-        length = dt
-        return position, velocity, length
+        return position, velocity
 
-    def route_to_goal(self, start, finish, velocity, map, dt=0.05, max_length = np.inf, max_time=30):
+    def route_to_goal(self, start, finish, velocity, map, dt=0.05, max_time=30):
         # Given a start and a method this route will return a low risk route between them. If a maximum length or time
         # are specified then the route will not exceed these, this may mean that the route does not reach the goal. The
         # method returns an array of positions, velocities, the length of the route, and whether the route reaches the
@@ -99,23 +61,21 @@ class path_finder():
 
         position = [start]
         velocity = [velocity]
-        length = 0
 
         for _ in range(int(max_time / dt)):
             terminal = False
             force = self.get_f(map, position[-1], f_goal=True, goal=finish)
-            step_position, step_velocity, step_length = self.euler_step(position[-1], velocity[-1], force, dt)
+            step_position, step_velocity = self.euler_step(position[-1], velocity[-1], force, dt)
             position.append(step_position)
             velocity.append(step_velocity)
-            length = length + step_length
 
-            if np.sqrt(np.sum(np.square(position[-1] - finish))) <= self.tol or length > max_length:
+            if np.sqrt(np.sum(np.square(position[-1] - finish))) <= self.tol:
                 terminal = True
                 break
 
-        return np.asarray(position), np.asarray(velocity), length, terminal
+        return np.asarray(position), np.asarray(velocity), terminal
 
-    def get_route(self, map, start, velocity=np.asarray([0,0]), dt=0.05, num_points = [32, 32, 16, 8], dist = [8, 4.5, 2.25, 1]):
+    def get_route(self, map, start, velocity=np.asarray([0,0]), dt=0.05, num_points = [16, 8], dist = [2.25, 1]):
         # generate routes to points in a circle around the goal and then from these points to the goal. Find the
         # shortest of these routes and return it
 
@@ -130,18 +90,32 @@ class path_finder():
         goals = goals[(goals<0.5).any(1)==False]
 
         # Generate routes to each goal position, and from those to the target
-        best_length = np.inf
         options = []
+        l = []
+        r = []
+        t = []
         for goal in goals:
-            position_l1, velocity_l1, length_l1, _ = self.route_to_goal(start, goal, velocity, map, dt=dt, max_length = np.inf)
-            position_l2, velocity_l2, length_l2, terminal = self.route_to_goal(position_l1[-1], self.end, velocity_l1[-1], map, dt=dt, max_length=np.inf)
+            position_l1, velocity_l1, _ = self.route_to_goal(start, goal, velocity, map, dt=dt)
+            position_l2, velocity_l2, terminal = self.route_to_goal(position_l1[-1], self.end, velocity_l1[-1], map, dt=dt)
+            smoothed = smooth(np.concatenate([position_l1, position_l2]), tol=0.1)
+            length = route_length(smoothed)
+            risk = self.get_risk(smoothed, map)
 
-            options.append(np.concatenate([position_l1, position_l2]))
-            if length_l1 + length_l2 < best_length:
-                best_length = length_l1 + length_l2
-                position = options[-1]
+            l.append(length[0])
+            r.append(risk[0])
+            t.append(terminal)
 
-        return position, options, goals
+            options.append(smoothed)
+
+        # decide which route is best
+        l = np.round(l, 2)
+        l = np.asarray(l) #length
+        r = np.asarray(r) #risk
+        t = np.asarray(t) #does it get to the goal
+        ratings = np.logical_and(t == 1, r == 0) * 1/l # hacky formula
+        best_route = np.argmax(ratings)
+
+        return options[best_route], options, goals
 
     def gen_dxdy2(self, map, d_max=1.0):
         # Generate matrix of distances, angles, and mxy which i don't remember whats its for. There are all used in the
@@ -158,7 +132,6 @@ class path_finder():
         self.c_theta = np.cos(thetas)
 
         self.mxy = np.asarray([int(d_max / map.dx),int(d_max / map.dy)])
-
 
     def get_f(self, map, pos, d_max=1.0, return_sum=False, f_goal=False, goal=None):
         # this method calculates the force on the drone at a point in the map. It uses preset matrix of distances to
@@ -206,8 +179,6 @@ class path_finder():
 
     def get_risk(self, pos_list, map, k=0, n = 100, method=2, plot = False):
         # returns the risk of a route at n points along it.
-
-
         idxs = np.linspace(k, pos_list.shape[0]-1, np.min(np.asarray([pos_list.shape[0]-k, n]))).astype(int)
 
         if method == 1:
@@ -249,11 +220,6 @@ class path_finder():
             cs = ax.contourf(x, y, z + 2*map.z + 2*map.z*z)
             plt.title(str(risk))
             plt.show()
-
-
-
-
-
 
         return risk, z
 

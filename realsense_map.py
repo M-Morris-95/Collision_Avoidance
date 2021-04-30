@@ -25,8 +25,6 @@ class realsense_map():
         self.dx = (xlim[1] - xlim[0]) / size[0]
         self.dy = (ylim[1] - ylim[0]) / size[1]
 
-
-
         # generate 2 2d grids for the x & y bounds
         self.x, self.y = np.meshgrid(np.arange(xlim[0], xlim[1]+self.dx, self.dx),
                                      np.arange(ylim[0], ylim[1]+self.dy, self.dy))

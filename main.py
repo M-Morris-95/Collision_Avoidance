@@ -6,19 +6,23 @@ import time
 from path_finder import *
 import numpy as np
 
-start = np.asarray([1.25,1.5])
-end = np.asarray([8.75,8.5])
-dt = 1/30
 
-xlim = [0,10]
-ylim = [0,10]
-size = [100,100]
 
 
 do_plt = True
 
 
-for _ in range(5):
+for _ in range(10):
+    start = np.asarray([1.25,1.5])
+    end = np.asarray([8.75,8.5])
+    dt = 1/30
+
+    xlim = [0,10]
+    ylim = [0,10]
+    size = [100,100]
+
+
+
     map = map_2d(size=size,
                  xlim=xlim,
                  ylim=ylim,
@@ -48,8 +52,10 @@ for _ in range(5):
         plot = anim(xlim = xlim, ylim = ylim, x = map.x, y = map.y)
 
     t=0
+    start = time.time()
     while True:
         # used for plotting at a constant frame rate
+
         start_t = time.time()
 
         # update map
@@ -67,6 +73,13 @@ for _ in range(5):
         pos_ode.update(vel = (route[k] - pos_ode.pos) / dt, pos = route[k])
 
         t = t + dt
+
+        # for i in range(28):
+        #     plt.plot(options[i][:,0],options[i][:,1])
+        #     plt.title(str(i))
+        #     plt.xlim([0,10])
+        #     plt.ylim([0,10])
+        #     plt.show()
 
         if do_plt:
             plot.update(true_map = map.z,
@@ -88,7 +101,8 @@ for _ in range(5):
         if pos_ode.terminal() or t > 50:
             break
 
-    # pygame.quit()
+pygame.quit()
+print(time.time()-start)
 
 
 
