@@ -75,7 +75,7 @@ class path_finder():
 
         return np.asarray(position), np.asarray(velocity), terminal
 
-    def get_route(self, map, start, velocity=np.asarray([0,0]), dt=0.05, num_points = [16, 8], dist = [2.25, 1]):
+    def get_route(self, map, start, velocity=np.asarray([0,0]), dt=0.05, num_points = [8, 8], dist = [4, 2]):
         # generate routes to points in a circle around the goal and then from these points to the goal. Find the
         # shortest of these routes and return it
 
